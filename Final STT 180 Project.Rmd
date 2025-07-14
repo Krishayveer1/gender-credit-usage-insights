@@ -1,0 +1,372 @@
+---
+title: "<div style='text-align: center;'>Analysis of Credit Data for Men and Women</div>"
+author: |
+  Krishayveer Sultania<br>
+  Aryanah Dover<br>
+  Aneeshwa Chittanuri<br>
+  Muzzamil Ali<br>
+  Nicholas Wille
+  </div>
+  <div style='text-align: center;'>
+date: "<div style='text-align: center;'>2025-04-15</div>"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  fig.width = 4, 
+  fig.height = 3
+)
+
+library(tidyverse)
+library(ISLR)
+data(Credit)
+```
+
+# 1. Introduction 
+In today’s world, credit plays a crucial role in managing personal finances. Whether it's purchasing a home, financing a car, or covering emergency expenses, access to credit allows individuals to handle both planned and unexpected financial needs. But while credit is widely used, the way people manage it can vary based on a range of factors—including gender. Although credit policies don’t explicitly differ by gender, societal norms, income disparities, and financial behavior patterns may lead to differences in how men and women interact with credit. These differences could affect credit limits, ratings, and overall usage. Understanding whether gender influences credit management is important not only for individuals aiming to build healthy financial habits but also for institutions seeking to create equitable lending practices. For this project, we analyzed the Credit dataset from the ISLR package in R. This dataset contains information on 400 individuals, including demographic variables like gender and financial variables such as income, credit limit, balance, and credit rating. Our goal is to examine how gender may relate to differences in credit behavior. 
+
+We focused on one central question: How does gender influence credit card usage? 
+
+To explore this, we broke it down into three key areas: 
+Do men and women differ in their credit ratings? 
+Are credit limits distributed differently across genders? 
+How does credit card spending—measured through balance or utilization—compare between men and women? 
+
+We expect to see some measurable differences. For example, men might have higher credit limits due to higher reported incomes, while women might use a smaller portion of their available credit. By analyzing these questions through summary statistics, data visualizations, and regression models, we hope to uncover meaningful patterns and provide insights into how gender may shape financial behavior. This analysis not only deepens our understanding of credit use but also highlights the importance of examining financial data through a demographic lens. 
+
+# 2. Methodology
+To explore gender-based differences in credit card behavior, we used the Credit dataset from the ISLR package in R. This dataset contains 400 simulated observations of individuals and includes a variety of demographic and financial variables such as Gender, Income, Rating, Limit, Balance, and Cards. Our goal was to evaluate how financial behaviors and outcomes—specifically credit rating, credit limit, and utilization—differ between men and women.
+Overview of Analytical Approach
+To systematically address our central research question—How does gender influence credit card usage?—we divided our analysis into three sub-questions:
+
+Do men and women differ in their credit ratings?
+Do men and women have different credit limits?
+Do men and women show different patterns in credit utilization?
+
+For each sub-question, we followed a consistent five-step process:
+
+1. Data Preparation
+We loaded the dataset and inspected it for missing or inconsistent values. Since the data was clean, minimal preprocessing was necessary. We converted the Gender variable into a factor to facilitate filtering and group-wise operations. Additionally, we created a new variable, frac_spent, representing credit utilization, calculated as Balance / Limit.
+
+2. Descriptive Statistics
+We began each analysis with a summary of the key variable (e.g., Rating, Limit, frac_spent) grouped by gender. This included the mean, median, standard deviation, and key quantiles to identify differences in central tendency and distribution.
+
+3. Data Visualization
+To visually assess the distribution of each financial variable by gender, we used:
+Boxplots to compare distributions of credit rating, limit, and utilization.
+Scatter plots with regression lines to explore relationships between income and credit metrics by gender.
+Line plots showing the average metric versus the number of credit cards, including error bars to visualize variability.
+
+4. Regression Modeling
+We used linear regression models to investigate whether Gender significantly predicts outcomes like Rating, Limit, or Utilization, either directly or in interaction with Income. For example:
+
+Rating ~ Income + Gender
+
+Limit ~ Income + Gender
+
+Utilization ~ Gender + Income + Age + Cards
+
+These models helped us control for potential confounding variables while isolating the effect of gender.
+
+5. Hypothesis Testing
+For key variables like credit limit, we conducted two-sample t-tests to assess whether observed differences between men and women were statistically significant. Confidence intervals were also examined to determine the robustness of any observed differences.
+
+# 3. Results
+
+```{r}
+credit_summary <- Credit %>%
+  group_by(Gender) %>%
+  summarise(
+    Min = min(Rating),
+    Q1 = quantile(Rating, 0.25),
+    Median = median(Rating),
+    Mean = mean(Rating),
+    Q3 = quantile(Rating, 0.75),
+    Max = max(Rating)
+  )
+credit_summary
+```
+
+This table presents key descriptive statistics for credit rating across genders. We observe that men and women have similar median and mean ratings, suggesting that any differences in creditworthiness are likely minimal. However, men show a slightly wider range in credit scores, indicating more variability within the group.
+
+## Question 1: Do men and women differ in their credit ratings?
+
+```{r}
+ggplot(Credit, aes(x = Income, y = Rating, color = Gender)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Income vs Credit Rating by Gender",
+    x = "Income (in $1000s)",
+    y = "Credit Rating"
+  ) +
+  theme_minimal()
+```
+
+This scatterplot visualizes the relationship between income and credit rating, separated by gender. Both groups show a positive correlation between income and rating, with similar trend lines. The male group’s regression line appears marginally flatter, suggesting that income may have a slightly weaker impact on ratings for men.
+
+```{r, include=FALSE}
+male_model <- lm(Rating ~ Income, data = Credit, subset = Gender == " Male")
+female_model <- lm(Rating ~ Income, data = Credit, subset = Gender == "Female")
+ 
+adj_r2_male <- summary(male_model)$adj.r.squared
+adj_r2_female <- summary(female_model)$adj.r.squared
+ 
+# Coefficients
+coef_male <- coef(male_model)
+coef_female <- coef(female_model)
+ 
+list(
+  "Male" = list(AdjR2 = adj_r2_male, Equation = coef_male),
+  "Female" = list(AdjR2 = adj_r2_female, Equation = coef_female)
+)
+ 
+```
+
+This plot compares income and credit rating by gender, with blue points for males and red for females. Separate regressions show similar trends: income moderately predicts rating (Adjusted R²: 0.637 for males, 0.613 for females). The equations—Male: R = 192.10 + 3.54×I; Female: R = 203.18 + 3.41×I—indicate that ratings rise with income for both, with women starting slightly higher and men increasing slightly faster. Summary stats confirm minimal differences, with females showing marginally higher median and mean ratings.
+
+```{r}
+avg_rating_by_cards <- Credit %>%
+  group_by(Gender, Cards) %>%
+  summarise(AvgRating = mean(Rating), .groups = "drop")
+ 
+# Line plot: Avg Rating vs Number of Cards by Gender
+ggplot(avg_rating_by_cards, aes(x = Cards, y = AvgRating, color = Gender)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  labs(
+    title = "Average Credit Rating vs Number of Credit Cards",
+    x = "Number of Credit Cards",
+    y = "Average Credit Rating"
+  ) +
+  theme_minimal()
+```
+
+This line graph displays the average credit rating by the number of credit cards owned, split by gender. Both groups show generally stable ratings for up to five cards. However, at six and especially seven cards, there’s a sharp spike in credit rating—most prominently for males—followed by a steep drop. These fluctuations suggest the presence of outliers or small sample sizes at higher card counts, especially beyond six cards.
+
+```{r}
+Credit %>%
+  group_by(Gender) %>%
+  summarise(
+    Mean_Rating = mean(Rating),
+    Median_Rating = median(Rating),
+    SD_Rating = sd(Rating),
+    Count = n()
+  )
+```
+
+
+```{r}
+ggplot(Credit, aes(x = Gender, y = Rating, fill = Gender)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = "Credit Rating by Gender", y = "Credit Rating", x = "") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Female" = "#F8766D", "Male" = "#00BFC4")) +
+  theme(legend.position = "none")
+```
+```{r, , include=FALSE}
+model <- lm(Rating ~ Gender, data = Credit)
+summary(model)
+```
+To answer our first research question of whether men and women differ in their credit ratings, we created a box plot and ran a linear regression model through R Markdown. The box plot above shows the distribution of credit ratings for men and women. It reveals that the mean, median and the highest credit rating values are all very similar. There are no outliers and the interquartile range (IQRs) of both genders are also about the same, indicating that gender is not a factor that affects credit ratings for individuals. Coming to the linear regression model below that, the p value for GenderFemale equals 0.859 which is greater than the 0.05 significance level which means that we fail to reject the null hypothesis. There is no evidence supporting the idea that being male or female affects credit ratings. It indicates that there is no statistically significant difference in credit ratings between men and women. 
+
+---
+
+### Question 2: Credit Limit vs Income & Cards by Gender
+ 
+We investigated the relationship between credit limit and income for men and women. We also explored how credit limits vary with the number of credit cards.
+ 
+---
+```{r limit-summary}
+Credit %>%
+  group_by(Gender) %>%
+  summarise(
+    Min = min(Limit),
+    Q1 = quantile(Limit, 0.25),
+    Median = median(Limit),
+    Mean = mean(Limit),
+    Q3 = quantile(Limit, 0.75),
+    Max = max(Limit)
+  )
+ 
+```
+
+This table summarizes the distribution of credit limits by gender. Both males and females have the same minimum value of 855, and their interquartile ranges are nearly identical. The median limit for females (4,768) is slightly higher than that for males (4,534), and the mean values are also very close (Females: 4,757; Males: 4,713). Overall, these results suggest that credit limits are distributed similarly across genders, with only minor differences in central tendency.
+
+```{r}
+ggplot(Credit, aes(x = Income, y = Limit, color = Gender)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, size = 1.2) +
+  labs(
+    title = "Income vs Credit Limit by Gender",
+    x = "Income (in $1000s)",
+    y = "Credit Limit ($)"
+  ) +
+  theme_minimal()
+```
+```{r, include=FALSE}
+lm_male_limit <- lm(Limit ~ Income, data = Credit, subset = Gender == " Male")
+lm_female_limit <- lm(Limit ~ Income, data = Credit, subset = Gender == "Female")
+ 
+adj_r2_male_limit <- summary(lm_male_limit)$adj.r.squared
+adj_r2_female_limit <- summary(lm_female_limit)$adj.r.squared
+ 
+coef_male_limit <- coef(lm_male_limit)
+coef_female_limit <- coef(lm_female_limit)
+ 
+tibble(
+  Gender = c("Male", "Female"),
+  Intercept = c(coef_male_limit[1], coef_female_limit[1]),
+  Slope = c(coef_male_limit[2], coef_female_limit[2]),
+  Adj_R2 = c(adj_r2_male_limit, adj_r2_female_limit)
+)
+```
+This scatterplot shows the relationship between income and credit limit, split by gender. Both groups display a clear positive correlation, with nearly overlapping regression lines. The linear models yield the following equations:
+Male: L = 2301.16 + 52.88 × I
+Female: L = 2472.41 + 50.92 × I
+The adjusted R² values—0.636 for males and 0.616 for females—indicate strong linear fits for both groups. The nearly identical slopes suggest that credit limits increase at a similar rate with income for both genders, while the slightly higher intercept for females implies marginally higher baseline credit limits at lower income levels.
+ 
+```{r}
+Credit %>%
+  group_by(Gender, Cards) %>%
+  summarise(
+    AvgLimit = mean(Limit),
+    SD = sd(Limit),
+    .groups = "drop"
+  ) %>%
+  ggplot(aes(x = Cards, y = AvgLimit, color = Gender)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = AvgLimit - SD, ymax = AvgLimit + SD), width = 0.3) +
+  labs(
+    title = "Average Credit Limit vs Number of Credit Cards",
+    x = "Number of Credit Cards",
+    y = "Average Credit Limit ($)"
+  ) +
+  theme_minimal()
+ 
+```
+
+The plot shows that average credit limits remain stable across 1 to 5 cards for both genders, with a spike at 7 cards—likely due to outliers—followed by a sharp drop. To examine gender differences in credit limits, we used a boxplot and a two-sample t-test. Both showed nearly identical distributions with overlapping medians and interquartile ranges. The t-test yielded a p-value of 0.85 and a confidence interval including zero, indicating no statistically significant difference. Thus, gender does not appear to influence credit limit distribution in this dataset.
+
+```{r box-plot2}
+
+# Reorder the female and male variables so, for color coordination
+levels(Credit$Gender) <- c("Female", "Male")
+
+# Using ggplot to out put box plot                              
+ggplot(Credit, aes(x = Gender, y = Limit, fill = Gender)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = "Credit Limit by Gender",
+       x = "Gender",
+       y = "Credit Limit") +
+  theme_minimal()
+```
+
+To statistically verify the observation from the boxplot, we conducted a two-sample t-test comparing credit limits across genders. The test produced a p-value of 0.85, which exceeds the 0.05 significance threshold, indicating no statistically significant difference. Additionally, the 95% confidence interval included zero, supporting the conclusion that gender does not influence credit limits in this dataset. 
+
+```{r t-test, include=FALSE}
+t.test(Limit ~ Gender, data = Credit)
+```
+
+### Question 3: Credit Utilization Analysis (Men vs Women)
+ 
+To understand how much of their available credit men and women are using, we created a new variable called `frac_spent`, representing the ratio of their balance to their limit.
+ 
+---
+```{r create-frac-spent}
+# Only add the column without overwriting anything else
+if (!"frac_spent" %in% names(Credit)) {
+  Credit$frac_spent <- Credit$Balance / Credit$Limit
+}
+```
+
+```{r}
+Credit %>%
+  group_by(Gender) %>%
+  summarise(
+    Min = min(frac_spent),
+    Q1 = quantile(frac_spent, 0.25),
+    Median = median(frac_spent),
+    Mean = mean(frac_spent),
+    Q3 = quantile(frac_spent, 0.75),
+    Max = max(frac_spent)
+  )
+```
+This table shows summary statistics for credit utilization, calculated as Balance ÷ Limit. While the maximum utilization is similar across genders, the median and mean are slightly higher for females (Median: 0.101 vs 0.092; Mean: 0.0921 vs 0.0869). This suggests that, on average, women use a slightly larger fraction of their available credit than men, though the differences are minor.
+
+```{r}
+Credit %>%
+  group_by(Gender, Cards) %>%
+  summarise(
+    AvgUtil = mean(frac_spent),
+    SD = sd(frac_spent),
+    .groups = "drop"
+  ) %>%
+  ggplot(aes(x = Cards, y = AvgUtil, color = Gender)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = AvgUtil - SD, ymax = AvgUtil + SD), width = 0.3) +
+  labs(
+    title = "Average Credit Utilization vs Number of Credit Cards",
+    x = "Number of Credit Cards",
+    y = "Average Fraction of Credit Used"
+  ) +
+  theme_minimal()
+ 
+```
+
+This plot shows the average credit utilization by the number of credit cards, with error bars representing standard deviation. Both genders follow a generally increasing trend, suggesting that individuals with more cards tend to use a greater fraction of their available credit. While males show a sharper rise beyond 6 cards, the wide error bars—especially at higher card counts—indicate variability likely due to smaller sample sizes. Lastly, we investigated whether credit card spending behavior—measured by utilization rate varies by gender.  
+```{r util-plot}
+Credit <- Credit %>%
+  mutate(Utilization = Balance / Limit)
+
+# Spending pattern using ggplot
+ggplot(Credit, aes(x = Income, y = Utilization, color = Gender)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Income vs. Credit Utilization by Gender",
+       x = "Income ($1000s)",
+       y = "Utilization (Balance / Limit)") +
+  theme_minimal()
+```
+
+We applied a linear regression model to further investigate factors influencing credit utilization. The model included gender, income, age, and number of cards as predictors. The Gender (Male) coefficient was approximately 0.0058, indicating a negligible impact of gender on utilization. In contrast, the coefficients for income and number of cards were more substantial, highlighting that financial factors are stronger predictors of spending behavior than gender. This scatterplot shows the relationship between income and credit utilization (balance ÷ limit), separated by gender. For both men and women, the regression lines are nearly flat, indicating weak or no correlation between income and credit usage rates. The regression equations are as follows:
+
+Male: U = 0.0752 + 0.00026 × I (Adj R² =  0.014)
+Female: U = 0.0822 + 0.00022 × I (Adj R² = 0.008)
+
+These very low adjusted R² values confirm that income has little explanatory power for utilization across both genders. The slightly higher intercept for females suggests marginally higher baseline utilization, but the difference is minimal.
+
+# 4. Conclusion 
+Through our analysis of credit card behavior by gender, we found that gender does not significantly impact any of the key credit metrics in the dataset—credit rating, credit limit, or utilization rate. For Subquestion 1, a comparison of credit ratings between men and women revealed nearly identical distributions and a p-value of 0.859, indicating no statistically significant difference. Subquestion 2 produced similar findings, where a t-test comparing credit limits between genders yielded a high p-value (0.85) and a 95% confidence interval that crossed zero, confirming no meaningful difference. In Subquestion 3, a linear regression model predicting credit utilization showed that the Gender (Male) coefficient was approximately 0.0058, a minimal effect compared to stronger predictors like income and number of cards. Overall, we concluded that financial behaviors were better explained by economic factors such as income and card ownership rather than gender. 
+
+### Critique of Methodology  
+While our methodology used a range of tools—regression models, summary statistics, and visualizations—it prioritized consistency over variety. This limited our exploration of alternative methods such as violin plots, interaction plots, ANOVA, or generalized linear models, which could have offered deeper insights. Choosing simpler models helped clarity but may have overlooked nuanced relationships. Additionally, the simulated nature of the data restricted model complexity. Future work with richer datasets could benefit from advanced techniques like machine learning or multivariate analysis to uncover subtler patterns.
+
+### Improving our Analysis  
+To improve our analysis, we could have introduced grouping by another variable, such as income groups or age brackets, to explore whether gender has an impact within specific subpopulations. Additionally, incorporating data transformations or standardizing numeric variables may have improved model interpretability. A comparison using multiple visual formats, such as violin plots, density plots, or interaction plots, would also have enhanced the reader’s understanding without being repetitive.
+
+### Readability and Validity of the Data  
+The dataset we used was relatively clean and manageable. We made small adjustments, such as reordering factor levels for clearer visuals and creating a new column for utilization using Balance / Limit, but overall, the data required minimal preprocessing. Because the data came from the R ISLR package, we considered it valid and reliable for educational analysis, although it may not reflect real-world credit behavior comprehensively. Its simulated nature also means that while it's structured for consistency, it might lack some of the variability found in true credit datasets  
+
+### Limitations of the Analysis  
+One key limitation was that our analysis consistently produced the same conclusion: gender had no statistical impact. This limited our ability to explore different statistical pathways or draw comparisons between models. It also meant that some methods we considered using, like clustering or decision trees, would have been redundant or uninformative given the data’s lack of variation by gender. Another limitation is the lack of deeper demographic or behavioral variables (marital status, employment type), which could have revealed more complex interactions beyond gender.  
+
+### Future Questions Using Similar Methods  
+Although gender showed no significant effect, this dataset and methodology could be extended to explore several other questions. Such as:
+How do income levels influence future credit behavior or spending limits?  
+Does the number of credit cards predict future financial health or default risk?  
+How do age and education interact with income to shape utilization rates?  
+Could credit utilization over time be modeled using time series data to predict financial stability?  
+Using similar regression and inference techniques, these questions could reveal more meaningful patterns and relationships, especially if applied to larger or real-world datasets.
+
+# 5. References 
+
+- James, G., Witten, D., Hastie, T., and Tibshirani, R. (2013) An Introduction to Statistical Learning with applications in R, www.StatLearning.com, Springer-Verlag, New York. 
+- Monash Bioinformatics Platform (2017). *R Markdown*. Available at: https://monashbioinformaticsplatform.github.io/2017-11-16-open-science-training/topics/rmarkdown.html
+- Xie, Y. (2021). *R Markdown Cookbook: update date*. Available at: https://bookdown.org/yihui/rmarkdown-cookbook/update-date.html
+
